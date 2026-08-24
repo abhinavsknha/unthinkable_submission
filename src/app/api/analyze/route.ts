@@ -68,9 +68,11 @@ export async function POST(req: NextRequest) {
       }
     } else if (file.type.startsWith("image/")) {
       try {
+        const os = require('os');
         const { data } = await Tesseract.recognize(buffer, "eng", {
           logger: (m) => console.log(m),
-        });
+          cachePath: os.tmpdir(),
+        } as any);
         extractedText = data.text;
       } catch (err) {
         console.error("OCR Error:", err);
