@@ -1,5 +1,7 @@
 # Social Media Content Analyzer
 
+**Live Application URL:** [https://unthinkable-submission.vercel.app](https://unthinkable-submission.vercel.app)
+
 This project is a web application that helps users analyze their social media content and suggests engagement improvements. Built as part of the technical assessment for the Software Engineer position.
 
 ## Approach & Architecture
