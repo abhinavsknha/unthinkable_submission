@@ -47,16 +47,27 @@ function generateMockAnalysis(text: string) {
 export async function POST(req: NextRequest) {
   try {
     const formData = await req.formData();
-    const file = formData.get("file") as File | null;
+    
+    // 1. If text was already extracted on the client (e.g. OCR for images)
+    const clientText = formData.get("text") as string | null;
+    if (clientText) {
+      const analysis = generateMockAnalysis(clientText);
+      return NextResponse.json({
+        success: true,
+        extractedText: clientText,
+        analysis,
+      });
+    }
 
+    // 2. Otherwise, process the file (PDF)
+    const file = formData.get("file") as File | null;
     if (!file) {
-      return NextResponse.json({ error: "No file provided" }, { status: 400 });
+      return NextResponse.json({ error: "No file or text provided" }, { status: 400 });
     }
 
     const buffer = Buffer.from(await file.arrayBuffer());
     let extractedText = "";
 
-    // 1. Check file type and extract text
     if (file.type === "application/pdf") {
       try {
         const pdfParse = require("pdf-parse");
@@ -66,21 +77,9 @@ export async function POST(req: NextRequest) {
         console.error("PDF Parse Error:", err);
         return NextResponse.json({ error: "Failed to parse PDF" }, { status: 500 });
       }
-    } else if (file.type.startsWith("image/")) {
-      try {
-        const os = require('os');
-        const { data } = await Tesseract.recognize(buffer, "eng", {
-          logger: (m: any) => console.log(m),
-          cachePath: os.tmpdir(),
-        } as any);
-        extractedText = data.text;
-      } catch (err) {
-        console.error("OCR Error:", err);
-        return NextResponse.json({ error: "Failed to perform OCR on image" }, { status: 500 });
-      }
     } else {
       return NextResponse.json(
-        { error: "Unsupported file type. Please upload a PDF or an Image." },
+        { error: "Unsupported file type on backend. Images should be processed on the client." },
         { status: 400 }
       );
     }
@@ -92,7 +91,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 2. Analyze the text (Mock/Heuristic approach for the assignment)
+    // Analyze the text
     const analysis = generateMockAnalysis(extractedText);
 
     return NextResponse.json({

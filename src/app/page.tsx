@@ -9,6 +9,7 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<any>(null);
+  const [statusText, setStatusText] = useState("Analyze");
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     setError(null);
@@ -33,11 +34,34 @@ export default function Home() {
     setLoading(true);
     setError(null);
     setResult(null);
-
-    const formData = new FormData();
-    formData.append("file", file);
+    setStatusText("Analyzing...");
 
     try {
+      const formData = new FormData();
+      
+      // OCR on the client side to avoid Vercel Serverless limits and timeouts
+      if (file.type.startsWith("image/")) {
+        setStatusText("Downloading OCR Engine (may take a moment on first run)...");
+        const Tesseract = (await import("tesseract.js")).default;
+        const { data } = await Tesseract.recognize(file, "eng", {
+          logger: (m) => {
+            if (m.status === "recognizing text") {
+              setStatusText(`Extracting text... ${Math.round(m.progress * 100)}%`);
+            } else if (m.status) {
+              setStatusText(`Preparing OCR: ${m.status}...`);
+            }
+          }
+        });
+        
+        if (!data.text || data.text.trim() === "") {
+          throw new Error("No text could be extracted from the image.");
+        }
+        formData.append("text", data.text);
+        setStatusText("Finalizing analysis...");
+      } else {
+        formData.append("file", file);
+      }
+
       const res = await fetch("/api/analyze", {
         method: "POST",
         body: formData,
@@ -51,9 +75,11 @@ export default function Home() {
 
       setResult(data);
     } catch (err: any) {
-      setError(err.message);
+      console.error(err);
+      setError(err.message || "An unexpected error occurred.");
     } finally {
       setLoading(false);
+      setStatusText("Analyze");
     }
   };
 
@@ -106,7 +132,7 @@ export default function Home() {
                 className="ml-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading && <Loader2 className="animate-spin -ml-1 mr-2 h-4 w-4" />}
-                {loading ? "Analyzing..." : "Analyze"}
+                {statusText}
               </button>
             </div>
           )}
