@@ -1,6 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import Tesseract from "tesseract.js";
 
+// Polyfill DOMMatrix for pdf-parse if it doesn't exist in the Node.js / Edge environment
+if (typeof global !== "undefined" && typeof global.DOMMatrix === "undefined") {
+  (global as any).DOMMatrix = class DOMMatrix {
+    a=1; b=0; c=0; d=1; e=0; f=0;
+  };
+}
+if (typeof global !== "undefined" && typeof global.Path2D === "undefined") {
+  (global as any).Path2D = class Path2D {};
+}
+
 // Basic heuristic-based analysis for engagement improvements
 function generateMockAnalysis(text: string) {
   const wordCount = text.split(/\s+/).filter((w) => w.length > 0).length;
